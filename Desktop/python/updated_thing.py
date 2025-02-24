@@ -36,7 +36,7 @@ class SortingVisualizer:
         self.style.configure("Rounded.TButton",
                              font=("Arial", 10, "bold"),
                              foreground="#003366",
-                             background="#f0f0f0",  # Transparent (matches parent background)
+                             background="#f0f0f0",  # Transparent (même couleur que le parent)
                              borderwidth=2,
                              relief="flat",
                              padding=10)
@@ -52,7 +52,7 @@ class SortingVisualizer:
         self.run_button = ttk.Button(self.control_frame, text="Lancer le tri", command=self.run_sort, style="Rounded.TButton")
         self.run_button.pack(pady=5)
         
-        # Canevas pour l'animation - Bigger canvas
+        # Canevas pour l'animation - Taille augmentée
         self.canvas = tk.Canvas(self.frame, width=800, height=400, bg="white", highlightbackground="#707070")
         self.canvas.pack(padx=10, pady=10)
         
@@ -119,13 +119,11 @@ def selection_sort(arr, draw_callback, delay):
         for j in range(i + 1, n):
             if arr[j] < arr[min_idx]:
                 min_idx = j
-            # Passer sorted_index = i-1 for already sorted portion
             draw_callback(highlight_indices=[i, j, min_idx], sorted_index=i-1)
             time.sleep(delay / 1000.0)
         arr[i], arr[min_idx] = arr[min_idx], arr[i]
         draw_callback(highlight_indices=[i, min_idx], sorted_index=i-1)
         time.sleep(delay / 1000.0)
-        # Update the sorted portion (elements with indices <= i are sorted)
         draw_callback(sorted_index=i)
     draw_callback(sorted_index=n-1)
 
@@ -202,6 +200,24 @@ def merge(arr, draw_callback, delay, left, mid, right):
         time.sleep(delay / 1000.0)
         k += 1
 
+def bubble_sort(arr, draw_callback, delay):
+    n = len(arr)
+    for i in range(n):
+        for j in range(n - i - 1):
+            draw_callback(highlight_indices=[j, j+1])
+            time.sleep(delay / 1000.0)
+            if arr[j] > arr[j+1]:
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+                draw_callback(swap_indices=[j, j+1])
+                time.sleep(delay / 1000.0)
+    # Affichage final du tableau trié
+    draw_callback(sorted_index=len(arr)-1)
+
+def tim_sort(arr, draw_callback, delay):
+    arr.sort()
+    draw_callback(sorted_index=len(arr)-1)
+    time.sleep(delay / 1000.0)
+
 # =====================================================
 # Textes Théoriques pour chaque Algorithme
 # =====================================================
@@ -210,7 +226,9 @@ theory_texts = {
     "Selection Sort": "Selection Sort :\n\nPrincipe : Parcourir le tableau pour trouver l'élément minimum et le placer en première position, puis répéter pour le reste du tableau.\nComplexité : O(n²) dans le pire cas.",
     "Insertion Sort": "Insertion Sort :\n\nPrincipe : Construire progressivement une sous-liste triée en insérant chaque nouvel élément à sa position correcte.\nComplexité : O(n²) dans le pire cas.",
     "Quick Sort": "Quick Sort :\n\nPrincipe : Diviser le tableau autour d'un pivot et trier récursivement les sous-tableaux.\nComplexité : En moyenne O(n log n), mais O(n²) dans le pire cas.",
-    "Merge Sort": "Merge Sort :\n\nPrincipe : Diviser le tableau en deux, trier récursivement les deux moitiés et fusionner les deux sous-tableaux triés.\nComplexité : O(n log n) dans tous les cas."
+    "Merge Sort": "Merge Sort :\n\nPrincipe : Diviser le tableau en deux, trier récursivement les deux moitiés et fusionner les deux sous-tableaux triés.\nComplexité : O(n log n) dans tous les cas.",
+    "Bubble Sort": "Bubble Sort :\n\nPrincipe : Comparer et échanger les éléments adjacents jusqu'à ce que le tableau soit trié.\nComplexité : O(n²) dans le pire cas.",
+    "Tim Sort": "Tim Sort :\n\nPrincipe : Algorithme de tri hybride utilisé par Python (basé sur l'insertion et la fusion).\nComplexité : O(n log n) dans le pire cas."
 }
 
 # =====================================================
@@ -225,16 +243,17 @@ def benchmark_algorithms():
     algorithms = {
         "Selection Sort": selection_sort,
         "Insertion Sort": insertion_sort,
-        # Pour le benchmark, on ne souhaite pas l'animation => délai 0 et fonction de dessin vide.
-        "Quick Sort": lambda arr, draw, delay: quick_sort(arr, lambda cp: None, 0),
-        "Merge Sort": lambda arr, draw, delay: merge_sort(arr, lambda cp: None, 0)
+        "Bubble Sort": bubble_sort,
+        "Quick Sort": lambda arr, draw, delay: quick_sort(arr, lambda *args, **kwargs: None, 0),
+        "Merge Sort": lambda arr, draw, delay: merge_sort(arr, lambda *args, **kwargs: None, 0),
+        "Tim Sort": lambda arr, draw, delay: tim_sort(arr, lambda *args, **kwargs: None, 0)
     }
     results = {name: [] for name in algorithms}
     for size in sizes:
         for name, func in algorithms.items():
             arr = [random.randint(1, size) for _ in range(size)]
             start = time.time()
-            func(arr, lambda cp: None, 0)
+            func(arr, lambda *args, **kwargs: None, 0)
             end = time.time()
             results[name].append(end - start)
     # Création du graphique avec une taille plus grande
@@ -284,7 +303,7 @@ class QuizFrame(tk.Frame):
         self.questions = [
             {
                 "question": "Quel est l'algorithme le plus efficace en moyenne ?",
-                "options": ["Selection Sort", "Insertion Sort", "Quick Sort", "Merge Sort"],
+                "options": ["Selection Sort", "Insertion Sort", "Quick Sort", "Merge Sort", "Tim Sort"],
                 "answer": "Quick Sort"
             },
             {
@@ -369,7 +388,7 @@ class SortingApp:
         
         # Boutons de navigation dans la sidebar
         self.buttons = {}
-        sections = ["Selection Sort", "Insertion Sort", "Quick Sort", "Merge Sort", "Comparison", "Quiz"]
+        sections = ["Selection Sort", "Insertion Sort", "Bubble Sort", "Quick Sort", "Merge Sort", "Tim Sort", "Comparison", "Quiz"]
         for sec in sections:
             btn = tk.Button(self.sidebar, text=sec, command=lambda s=sec: self.show_section(s))
             btn.pack(fill="x", padx=10, pady=5)
@@ -382,15 +401,19 @@ class SortingApp:
         """Affiche la section sélectionnée en détruisant la précédente."""
         if self.section_frame:
             self.section_frame.destroy()
-        if section in ["Selection Sort", "Insertion Sort", "Quick Sort", "Merge Sort"]:
+        if section in ["Selection Sort", "Insertion Sort", "Bubble Sort", "Quick Sort", "Merge Sort", "Tim Sort"]:
             if section == "Selection Sort":
                 vis = SortingVisualizer(self.content_frame, section, selection_sort, theory_texts[section])
             elif section == "Insertion Sort":
                 vis = SortingVisualizer(self.content_frame, section, insertion_sort, theory_texts[section])
+            elif section == "Bubble Sort":
+                vis = SortingVisualizer(self.content_frame, section, bubble_sort, theory_texts[section])
             elif section == "Quick Sort":
                 vis = SortingVisualizer(self.content_frame, section, quick_sort, theory_texts[section])
             elif section == "Merge Sort":
                 vis = SortingVisualizer(self.content_frame, section, merge_sort, theory_texts[section])
+            elif section == "Tim Sort":
+                vis = SortingVisualizer(self.content_frame, section, tim_sort, theory_texts[section])
             self.section_frame = vis.frame
         elif section == "Comparison":
             self.section_frame = ComparisonFrame(self.content_frame)
